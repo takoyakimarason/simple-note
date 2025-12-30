@@ -14,7 +14,7 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 import { 
-  Moon, Sun, Share2, Check, Loader2, FileText, Palette 
+  Moon, Sun, Share2, Check, Loader2, FileText, Palette, Eye, PenLine, ExternalLink
 } from 'lucide-react';
 
 // --- 環境変数から設定を読み込み ---
@@ -41,6 +41,34 @@ function useDebounce(value: any, delay: number) {
   return debouncedValue;
 }
 
+// URLをリンクに変換して表示するコンポーネント
+const LinkifiedText = ({ text, className, style }: { text: string, className?: string, style?: React.CSSProperties }) => {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+
+  return (
+    <div className={className} style={style}>
+      {parts.map((part, i) => {
+        if (part.match(urlRegex)) {
+          return (
+            <a 
+              key={i} 
+              href={part} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-blue-500 hover:underline inline-flex items-center gap-0.5 align-middle"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {part} <ExternalLink size={14} className="opacity-70" />
+            </a>
+          );
+        }
+        return part;
+      })}
+    </div>
+  );
+};
+
 const TEXT_COLORS = [
   { label: '自動', value: 'default', class: 'bg-gradient-to-br from-gray-500 to-gray-400' },
   { label: '赤', value: '#ef4444', class: 'bg-red-500' },
@@ -59,6 +87,7 @@ export default function App() {
   const [status, setStatus] = useState('idle');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isLanding, setIsLanding] = useState(true);
+  const [isPreview, setIsPreview] = useState(false); // 閲覧モードの状態
   
   const [localContent, setLocalContent] = useState('');
   const debouncedContent = useDebounce(localContent, 1000);
@@ -252,6 +281,20 @@ export default function App() {
                 {status === 'error' && <span className="text-red-500">エラー</span>}
                 {status === 'copied' && <span className="text-blue-500">URLコピー完了</span>}
               </div>
+
+              {/* 閲覧モード切り替えボタン */}
+              <button 
+                onClick={() => setIsPreview(!isPreview)}
+                title={isPreview ? "編集モードに戻る" : "閲覧モード（リンク有効）"}
+                className={`p-2 rounded-md transition-colors ${
+                  isPreview 
+                    ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-300' 
+                    : (isDarkMode ? 'hover:bg-neutral-800 text-neutral-400' : 'hover:bg-neutral-100 text-neutral-500')
+                }`}
+              >
+                {isPreview ? <PenLine size={18} /> : <Eye size={18} />}
+              </button>
+
               <button onClick={copyUrl} className={`p-2 rounded-md transition-colors ${isDarkMode ? 'hover:bg-neutral-800 text-neutral-400' : 'hover:bg-neutral-100 text-neutral-500'}`}><Share2 size={18} /></button>
               <div className="relative">
                 <button onClick={() => setShowColorPicker(!showColorPicker)} className={`p-2 rounded-md transition-colors ${isDarkMode ? 'hover:bg-neutral-800 text-neutral-400' : 'hover:bg-neutral-100 text-neutral-500'}`}><Palette size={18} /></button>
@@ -268,8 +311,35 @@ export default function App() {
               <button onClick={toggleTheme} className={`p-2 rounded-md transition-colors ${isDarkMode ? 'hover:bg-neutral-800 text-neutral-400' : 'hover:bg-neutral-100 text-neutral-500'}`}>{isDarkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
             </div>
           </header>
-          <main className="flex-1 relative">
-             <textarea value={localContent} onChange={handleContentChange} placeholder="ここにメモを入力..." style={{ color: textColor === 'default' ? undefined : textColor }} className={`w-full h-full p-4 md:p-8 md:text-lg resize-none outline-none font-mono leading-relaxed transition-colors ${isDarkMode ? 'bg-neutral-900 placeholder-neutral-700' : 'bg-white placeholder-neutral-300'} ${textColor === 'default' ? (isDarkMode ? 'text-neutral-200' : 'text-neutral-800') : ''}`} spellCheck={false} />
+          <main className="flex-1 relative overflow-hidden">
+             {isPreview ? (
+                // 閲覧モード（リンク有効）
+                <div className="w-full h-full overflow-y-auto">
+                    <LinkifiedText 
+                        text={localContent} 
+                        className={`min-h-full p-4 md:p-8 md:text-lg outline-none font-mono leading-relaxed whitespace-pre-wrap break-words transition-colors ${
+                            isDarkMode 
+                            ? 'bg-neutral-900 placeholder-neutral-700' 
+                            : 'bg-white placeholder-neutral-300'
+                        } ${textColor === 'default' ? (isDarkMode ? 'text-neutral-200' : 'text-neutral-800') : ''}`}
+                        style={{ color: textColor === 'default' ? undefined : textColor }}
+                    />
+                </div>
+             ) : (
+                // 編集モード（入力欄）
+                <textarea 
+                    value={localContent} 
+                    onChange={handleContentChange} 
+                    placeholder="ここにメモを入力..." 
+                    style={{ color: textColor === 'default' ? undefined : textColor }} 
+                    className={`w-full h-full p-4 md:p-8 md:text-lg resize-none outline-none font-mono leading-relaxed transition-colors ${
+                        isDarkMode 
+                        ? 'bg-neutral-900 placeholder-neutral-700' 
+                        : 'bg-white placeholder-neutral-300'
+                    } ${textColor === 'default' ? (isDarkMode ? 'text-neutral-200' : 'text-neutral-800') : ''}`} 
+                    spellCheck={false} 
+                />
+             )}
           </main>
         </div>
       )}
